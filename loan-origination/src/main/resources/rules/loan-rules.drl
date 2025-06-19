@@ -1,0 +1,11 @@
+package rules
+
+import com.bank.loanorigination.model.LoanRequest;
+
+rule "Aprobar prestamo menores a 10000"
+    when 
+        $loan : LoanRequest(amount < 10000)
+    then
+        System.out.println("Regla aplicada: prestamo aprobado");
+        $loan.setApproved(true);
+end
