@@ -1,8 +1,10 @@
 package com.bank.loanorigination.service;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
+
+import org.drools.core.io.impl.ClassPathResource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.kie.api.runtime.KieSession;
@@ -16,25 +18,33 @@ class LoanEvaluationServiceTest {
 
     @BeforeEach
     void setUp() {
-        KieHelper kieHelper = new KieHelper();
-        kieHelper.addResource(
-                org.kie.internal.io.ResourceFactory.newClassPathResource("rules/loan-rules.drl"),
-                org.kie.api.io.ResourceType.DRL);
+        // Carga la regla desde src/main/resources/rules/loan-rules.drl
+        KieHelper kieHelper = new KieHelper()
+                .addResource(new ClassPathResource("rules/loan-rules.drl"));
+
         KieSession kieSession = kieHelper.build().newKieSession();
         service = new LoanEvaluationService(kieSession);
     }
 
     @Test
-    void evaluate_OK() {
-        LoanRequest request = new LoanRequest(5000);
-        LoanRequest result = service.evaluate(request);
-        assertTrue(result.isApproved(), "Loan should be approved");
+    void approvesBelowLimit() {
+        LoanRequest request = LoanRequest.builder()
+                .requestedAmount(BigDecimal.valueOf(5_000))
+                .build(); // approved = false por defecto
+
+        boolean ok = service.evaluate(request);
+
+        assertThat(ok).isTrue();
     }
 
     @Test
-    void evaluate_KO() {
-        LoanRequest request = new LoanRequest(15000);
-        LoanRequest result = service.evaluate(request);
-        assertFalse(result.isApproved(), "Loan should NOT be approved");
+    void rejectsAboveLimit() {
+        LoanRequest request = LoanRequest.builder()
+                .requestedAmount(BigDecimal.valueOf(15_000))
+                .build();
+
+        boolean ok = service.evaluate(request);
+
+        assertThat(ok).isFalse();
     }
 }

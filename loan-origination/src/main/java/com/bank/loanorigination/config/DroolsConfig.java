@@ -1,5 +1,6 @@
 package com.bank.loanorigination.config;
 
+import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.KieSession;
 import org.kie.internal.utils.KieHelper;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +14,7 @@ public class DroolsConfig {
         KieHelper kieHelper = new KieHelper();
         kieHelper.addResource(
                 org.kie.internal.io.ResourceFactory.newClassPathResource("rules/loan-rules.drl"),
-                org.kie.api.io.ResourceType.DRL);
+                ResourceType.DRL);
         return kieHelper.build().newKieSession();
     }
 }

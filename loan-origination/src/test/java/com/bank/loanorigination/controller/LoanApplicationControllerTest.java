@@ -1,5 +1,7 @@
 package com.bank.loanorigination.controller;
 
+import static com.bank.loanorigination.Utils.ApiPaths.LOAN_APPLICATIONS;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -8,80 +10,80 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
-import com.bank.loanorigination.Utils.routesLoanOrigination;
+import com.bank.loanorigination.exception.GlobalExceptionHandler;
 import com.bank.loanorigination.model.LoanApplication;
 import com.bank.loanorigination.service.LoanApplicationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-public class LoanApplicationControllerTest {
+class LoanApplicationControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private AutoCloseable closeable;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    // Inyectamos un mock para el service en el contexto
-    @MockBean
+    @Mock
     private LoanApplicationService service;
+    @InjectMocks
+    private LoanApplicationController controller;
 
-    private LoanApplication input;
-    private String fullName = "Ana López";
-    private String dni = "11223344X";
-    private String email = "ana@example.com";
-    private BigDecimal amount = BigDecimal.valueOf(8000);
+    private MockMvc mvc;
 
     @BeforeEach
-    void setUp() {
-        // Preparamos el objeto que usaremos en los tests
-        input = new LoanApplication();
-        input.setFullName(fullName);
-        input.setDni(dni);
-        input.setEmail(email);
-        input.setRequestedAmount(amount);
+    void open() {
+        closeable = MockitoAnnotations.openMocks(this);
+
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
+        validator.afterPropertiesSet(); // inicializa Hibernate Validator
+
+        mvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .setValidator(validator) // Spring Validator correcto
+                .build();
+    }
+
+    @AfterEach
+    void close() throws Exception {
+        closeable.close();
     }
 
     @Test
-    void create_OK_shouldReturn201AndBody() throws Exception {
-        // Simulamos que el service aprueba la solicitud
-        LoanApplication saved = new LoanApplication();
-        saved.setId(1L);
-        saved.setFullName(fullName);
-        saved.setDni(dni);
-        saved.setEmail(email);
-        saved.setRequestedAmount(amount);
-        saved.setApproved(true);
+    void returns201WhenCreated() throws Exception {
+        LoanApplication req = LoanApplication.builder()
+                .fullName("Grace")
+                .dni("87654321X")
+                .email("grace@uni.com")
+                .requestedAmount(BigDecimal.valueOf(3_000))
+                .build();
 
-        when(service.create(any(LoanApplication.class))).thenReturn(saved);
+        when(service.create(any()))
+                .thenReturn(req.toBuilder().approved(true).build());
 
-        mockMvc.perform(post(routesLoanOrigination.POST_LOAN_APPLICATION)
+        mvc.perform(post(LOAN_APPLICATIONS)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(input)))
+                .content(MAPPER.writeValueAsString(req)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.approved").value(true))
-                .andExpect(jsonPath("$.fullName").value(fullName));
+                .andExpect(jsonPath("$.approved", is(true)));
     }
 
     @Test
-    void create_KO_shouldReturn400() throws Exception {
-        input.setRequestedAmount(null);
+    void returns400OnValidationError() throws Exception {
+        // JSON mal formado para disparar @Valid
+        String invalidJson = "{ \"fullName\": \"\", \"dni\": \"bad\", \"email\": \"x@\", \"requestedAmount\": -1 }";
 
-        mockMvc.perform(post(routesLoanOrigination.POST_LOAN_APPLICATION)
+        mvc.perform(post(LOAN_APPLICATIONS)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(input)))
-                .andExpect(status().isBadRequest());
+                .content(invalidJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fullName").exists());
     }
-
 }

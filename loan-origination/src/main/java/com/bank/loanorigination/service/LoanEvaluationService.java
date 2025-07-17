@@ -5,18 +5,18 @@ import org.springframework.stereotype.Service;
 
 import com.bank.loanorigination.model.LoanRequest;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class LoanEvaluationService {
 
     private final KieSession kieSession;
 
-    public LoanEvaluationService(KieSession kieSession) {
-        this.kieSession = kieSession;
+    public boolean evaluate(LoanRequest request) {
+        kieSession.insert(request); // 1. mete el hecho
+        kieSession.fireAllRules(); // 2. dispara las reglas
+        return Boolean.TRUE.equals(request.getApproved()); // 3. lee el resultado
     }
 
-    public LoanRequest evaluate(LoanRequest request) {
-        kieSession.insert(request);
-        kieSession.fireAllRules();
-        return request;
-    }
 }
