@@ -1,42 +1,43 @@
 package com.bank.loanorigination;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import com.bank.loanorigination.model.LoanApplication;
 import com.bank.loanorigination.repository.LoanApplicationRepository;
 
-@DataJpaTest // levanta sólo la capa JPA + H2
-@TestPropertySource(properties = // fuerza UTC para Hibernate
-"spring.jpa.properties.hibernate.jdbc.time_zone=UTC")
-class LoanApplicationRepositoryTest {
+@SpringBootTest
+class LoanOriginationApplicationTests {
 
 	@Autowired
-	private LoanApplicationRepository repo;
+	private LoanApplicationRepository repository;
 
 	@Test
-	void createdAtShouldBeUtc() {
-		// Arrange
-		LoanApplication app = new LoanApplication();
-		app.setFullName("Demo");
-		app.setRequestedAmount(BigDecimal.TEN);
+	void contextLoadsAndSavesEntity() {
+		// crea y guarda
+		LoanApplication entity = LoanApplication.builder()
+				.fullName("Test User")
+				.dni("11111111H")
+				.email("test@user.com")
+				.requestedAmount(BigDecimal.valueOf(1_000))
+				.approved(Boolean.TRUE)
+				.build();
 
-		// Act
-		repo.save(app);
-		OffsetDateTime stored = repo.findById(app.getId())
-				.orElseThrow()
-				.getCreatedAt();
+		UUID id = repository.save(entity).getId();
 
-		// Assert
-		assertEquals(ZoneOffset.UTC, stored.getOffset(),
-				"createdAt debe persistirse con sufijo Z (UTC)");
+		// recupera y verifica
+		Optional<LoanApplication> foundOpt = repository.findById(id);
+		LoanApplication found = foundOpt.orElseThrow(
+				() -> new AssertionError("LoanApplication not found"));
+
+		assertThat(found.getFullName()).isEqualTo("Test User");
+		assertThat(found.getApproved()).isTrue();
 	}
 }

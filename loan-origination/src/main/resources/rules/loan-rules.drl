@@ -2,10 +2,20 @@ package rules
 
 import com.bank.loanorigination.model.LoanRequest;
 
-rule "Aprobar prestamo menores a 10000"
-    when 
-        $loan : LoanRequest(amount < 10000)
-    then
-        System.out.println("Regla aplicada: prestamo aprobado");
-        $loan.setApproved(true);
+/**
+ * Regla muy básica:
+ *  - Si el importe solicitado (requestedAmount) es menor de 10 000,
+ *    se marca la solicitud como aprobada.
+ */
+rule "Aprobar préstamo menores a 10000"
+when
+    // Se traduce a: request.getRequestedAmount() < 10000
+    $loan : LoanRequest( requestedAmount < 10000 )
+then
+    System.out.println("Regla aplicada: préstamo aprobado");
+
+    // Avisamos al motor de que el objeto cambia
+    modify($loan) {
+        setApproved(true)
+    }
 end
