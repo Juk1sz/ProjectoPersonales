@@ -27,7 +27,8 @@ public class GlobalExceptionHandler {
             ConstraintViolationException ex) {
         Map<String, String> errors = new HashMap<>();
         ex.getConstraintViolations().forEach(cv -> {
-            String field = cv.getPropertyPath().toString();
+            String path = cv.getPropertyPath().toString();
+            String field = path.substring(path.lastIndexOf('.') + 1);
             String message = cv.getMessage();
             errors.put(field, message);
         });
